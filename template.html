@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#05060a">
+<title>Flappy Crypto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;background:#05060a;height:100%;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;overscroll-behavior:none}
+  canvas{display:block;width:100vw;height:100vh}
+  #lbBtn{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;width:44px;height:44px;border-radius:12px;border:1px solid rgba(64,255,208,.45);background:rgba(6,16,24,.82);color:#40ffd0;font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:40;font-family:system-ui,sans-serif}
+  #lbBtn:active{background:rgba(64,255,208,.25)}
+  #lbPanel{position:fixed;inset:0;background:rgba(3,6,10,.88);backdrop-filter:blur(4px);z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;font-family:"Share Tech Mono",Orbitron,monospace;padding:20px}
+  #lbBox{width:min(92vw,380px);max-height:82vh;border:1px solid rgba(64,255,208,.5);border-radius:16px;background:rgba(6,14,22,.96);padding:18px 16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 0 30px rgba(64,255,208,.15)}
+  #lbBox h2{margin:0;font-size:20px;color:#40ffd0;text-align:center;letter-spacing:2px;font-weight:400}
+  #lbNameRow{display:flex;gap:8px}
+  #lbName{flex:1;min-width:0;background:rgba(10,20,30,.9);border:1px solid rgba(64,255,208,.4);border-radius:10px;color:#cfe6ff;font:400 15px "Share Tech Mono",monospace;padding:10px 12px;outline:none}
+  #lbSave{border:1px solid rgba(64,255,208,.5);background:rgba(64,255,208,.12);color:#40ffd0;border-radius:10px;padding:0 14px;font:400 14px "Share Tech Mono",monospace;cursor:pointer}
+  #lbList{overflow:auto;min-height:120px;display:flex;flex-direction:column;gap:4px;scrollbar-width:thin}
+  .lb-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;background:rgba(64,255,208,.05);font-size:15px;color:#cfe6ff}
+  .lb-row.me{background:rgba(64,255,208,.16)}
+  .lb-rank{width:26px;color:#ffd23f}
+  .lb-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lb-score{color:#40ffd0;font-weight:700}
+  #lbClose{margin-top:4px;border:1px solid rgba(207,230,255,.4);background:transparent;color:#cfe6ff;border-radius:10px;padding:10px;font:400 15px "Share Tech Mono",monospace;cursor:pointer}
+  #namePanel{position:fixed;inset:0;background:rgba(3,6,10,.94);z-index:60;display:none;flex-direction:column;align-items:center;justify-content:center;font-family:"Share Tech Mono",Orbitron,monospace;padding:20px}
+  #nameBox{width:min(92vw,340px);border:1px solid rgba(64,255,208,.5);border-radius:16px;background:rgba(6,14,22,.96);padding:22px 18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 0 30px rgba(64,255,208,.15)}
+  #nameBox h2{margin:0;font-size:20px;color:#40ffd0;text-align:center;letter-spacing:2px;font-weight:400}
+  #nameBox p{margin:0;font-size:12px;color:rgba(207,230,255,.7);text-align:center;line-height:1.5}
+  #nameInput{width:100%;box-sizing:border-box;background:rgba(10,20,30,.9);border:1px solid rgba(64,255,208,.4);border-radius:10px;color:#cfe6ff;font:400 16px "Share Tech Mono",monospace;padding:12px 14px;outline:none;text-align:center}
+  #namePlay{border:1px solid rgba(64,255,208,.5);background:rgba(64,255,208,.14);color:#40ffd0;border-radius:10px;padding:13px;font:700 17px "Share Tech Mono",monospace;cursor:pointer;letter-spacing:2px}
+  #namePlay:active{background:rgba(64,255,208,.3)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="lbBtn" title="Leaderboard">🏆</div>
+<div id="lbPanel">
+  <div id="lbBox">
+    <h2>🏆 LEADERBOARD</h2>
+    <div id="lbNameRow">
+      <input id="lbName" maxlength="20" placeholder="your name" autocomplete="off" spellcheck="false">
+      <button id="lbSave">SAVE</button>
+    </div>
+    <div id="lbList"></div>
+    <button id="lbClose">CLOSE</button>
+  </div>
+</div>
+<div id="namePanel">
+  <div id="nameBox">
+    <h2>CHOOSE YOUR NAME</h2>
+    <p>this name goes on the global leaderboard — make it count</p>
+    <input id="nameInput" maxlength="20" placeholder="e.g. Hivera" autocomplete="off" spellcheck="false">
+    <div id="nameStatus" style="font-size:12px;color:#ff6b6b;text-align:center;min-height:18px"></div>
+    <button id="namePlay">▶ PLAY</button>
+  </div>
+</div>
+<script>
+'use strict';
+/* ============ FLAPPY CRYPTO — 1 pipe 1 logo, cycling 5 crypto logos ============ */
+var cvs = document.getElementById('c');
+var ctx = cvs.getContext('2d');
+var W = 0, H = 0, dpr = 1;
+
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cvs.width = Math.floor(W * dpr);
+  cvs.height = Math.floor(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+resize();
+window.addEventListener('resize', function () {
+  resize();
+  initScenery();
+  if (G.state === 'ready') reset();
+});
+
+/* ---- assets: the 5 crypto logos (base64, bulletproof) ---- */
+var LOGO_SRC = ['{{LOGO1}}', '{{LOGO2}}', '{{LOGO3}}', '{{LOGO4}}', '{{LOGO5}}'];
+var logos = [];
+for (var li = 0; li < LOGO_SRC.length; li++) {
+  var im = new Image();
+  im.src = LOGO_SRC[li];
+  logos.push(im);
+}
+function logoReady(i) { return logos[i] && logos[i].complete && logos[i].naturalWidth > 0; }
+
+/* ---- audio (WebAudio, no files) ---- */
+var AC = null;
+function ac() {
+  try { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; }
+  if (AC && AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function beep(f0, f1, dur, type, vol) {
+  var a = ac(); if (!a) return;
+  var o = a.createOscillator(), g = a.createGain();
+  o.type = type || 'square';
+  o.frequency.setValueAtTime(f0, a.currentTime);
+  if (f1) o.frequency.exponentialRampToValueAtTime(f1, a.currentTime + dur);
+  g.gain.setValueAtTime(vol || 0.07, a.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+  o.connect(g); g.connect(a.destination);
+  o.start(); o.stop(a.currentTime + dur + 0.02);
+}
+function sFlap()  { beep(420, 640, 0.08, 'square', 0.045); }
+function sScore() { beep(660, 990, 0.10, 'triangle', 0.08); setTimeout(function () { beep(880, 1320, 0.09, 'triangle', 0.06); }, 70); }
+function sHit()   { beep(230, 55, 0.35, 'sawtooth', 0.11); }
+function sPerfect() {
+  beep(523, 784, 0.09, 'triangle', 0.09);
+  setTimeout(function () { beep(659, 988, 0.09, 'triangle', 0.09); }, 90);
+  setTimeout(function () { beep(784, 1319, 0.16, 'triangle', 0.11); }, 190);
+}
+function perfectFX() {
+  G.perfectT = 180; /* 3s at 60fps */
+  G.sparkles = [];
+  for (var i = 0; i < 14; i++) G.sparkles.push({ ox: (Math.random() * 2 - 1) * 118, oy: (Math.random() * 2 - 1) * 27, r: 2.5 + Math.random() * 4, ph: Math.random() * 6.28, sp: 0.5 + Math.random() });
+  sPerfect();
+}
+
+/* ---- leaderboard (global, via Vercel API + GitHub DB) ---- */
+var LB = {
+  api: '/api/scores',
+  name: localStorage.getItem('flappy_player') || '',
+  scores: [], loading: false, open: false, lastSubmit: 0, submitT: 0, submitOk: null, myRank: 0
+};
+window.__LB = LB;
+function lbSanitize(n) { return String(n).slice(0, 20).replace(/[<>&"']/g, '').trim(); }
+function lbSave() {
+  var n = lbSanitize(document.getElementById('lbName').value) || 'Player';
+  LB.name = n;
+  try { localStorage.setItem('flappy_player', n); } catch (e) {}
+  document.getElementById('lbName').value = n;
+}
+function lbToggle(force) {
+  var want = force != null ? force : !LB.open;
+  /* don't open mid-run (bird would die behind the panel); ready & game-over are fine */
+  if (want && typeof G !== 'undefined' && G.state === 'play') return;
+  LB.open = want;
+  document.getElementById('lbPanel').style.display = want ? 'flex' : 'none';
+  document.getElementById('lbBtn').style.display = want ? 'none' : 'block';
+  if (want) { lbFetch(); if (navigator.virtualKeyboard && navigator.virtualKeyboard.hide) try { navigator.virtualKeyboard.hide(); } catch (e) {} }
+}
+function lbFetch() {
+  LB.loading = true; LB.scores = [];
+  fetch(LB.api).then(function (r) { return r.json(); }).then(function (d) {
+    LB.scores = (d && d.scores) || [];
+    LB.loading = false;
+  }).catch(function () { LB.loading = false; LB.scores = []; });
+}
+function lbRender() {
+  var list = document.getElementById('lbList');
+  if (LB.loading) { list.innerHTML = '<div class="lb-row" style="text-align:center;opacity:.7">loading…</div>'; return; }
+  if (!LB.scores.length) { list.innerHTML = '<div class="lb-row" style="text-align:center;opacity:.7">be the first to play!</div>'; return; }
+  var html = '';
+  for (var i = 0; i < LB.scores.length && i < 10; i++) {
+    var s = LB.scores[i];
+    html += '<div class="lb-row"><span class="lb-rank">' + (i + 1) + '</span><span class="lb-name">' + s.name + '</span><span class="lb-score">' + s.score + '</span></div>';
+  }
+  list.innerHTML = html;
+}
+function lbSubmit(score) {
+  if (score < 1) return;
+  LB.submitT = 150; LB.submitOk = null; LB.myRank = 0;
+  var n = LB.name || 'Player';
+  LB.lastSubmit = Date.now();
+  fetch(LB.api, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: n, score: score })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    LB.submitOk = !!(d && d.ok);
+    LB.myRank = (d && d.rank) || 0;
+    if (d && d.updated === false) LB.submitOk = 'same'; /* higher score already on board */
+    LB.submitT = 140;
+    if (LB.open) lbFetch();
+  }).catch(function () { LB.submitOk = false; LB.submitT = 120; });
+}
+window.__lbSubmit = lbSubmit; window.__lbToggle = lbToggle;
+
+
+var GROUND = 70, PW = 86, GAP_BASE = 180, GAP_MIN = 132, SPAWN_DIST = 252, BEST_KEY = 'flappy_crypto_best';
+
+/* ---- pipe colors matched to each crypto logo background ---- */
+var PIPE_COLORS = [
+  { body: ['#1a1a2e','#0f0f1a','#050510'], cap: ['#2a2a3e','#1a1a2e','#0a0a15'], glow: '#2a2a3e' },  /* Logo 1 — black bg */
+  { body: ['#ccff00','#aadd00','#88bb00'], cap: ['#ddff33','#bbee00','#77aa00'], glow: '#ccff00' },  /* Logo 2 — lime bg */
+  { body: ['#e8e8f0','#d0d0e0','#b8b8d0'], cap: ['#f0f0f8','#dcdce8','#c0c0d8'], glow: '#d0d0e0' },  /* Logo 3 — white bg */
+  { body: ['#2c374d','#232d40','#1a2233'], cap: ['#3d4a5e','#2c374d','#151d2e'], glow: '#3d4a5e' },  /* Logo 4 — dark blue bg */
+  { body: ['#1a1a2e','#0f0f1a','#050510'], cap: ['#2a2a3e','#1a1a2e','#0a0a15'], glow: '#2a2a3e' },  /* Logo 5 — black bg */
+];
+function pipeColorsFor(logoIdx) { return PIPE_COLORS[logoIdx % PIPE_COLORS.length]; }
+
+var MSGS = [
+  'Cancore is built for tokenized finance.',
+  'Connecting Canton Network with public-chain liquidity.',
+  'Native assets. Atomic settlement.',
+  'Self-custody by design.',
+  'No wrapped copies.',
+  'No trust. Just math.'
+];
+var MSG_CYCLE = 215, MSG_FADE = 55; /* ~3.6s per message, ~0.9s fade in/out */
+var bgMsg = { i: 0, t: 0, alpha: 0 };
+function msgEnv(t) {
+  if (t < MSG_FADE) return t / MSG_FADE;
+  if (t > MSG_CYCLE - MSG_FADE) return Math.max(0, (MSG_CYCLE - t) / MSG_FADE);
+  return 1;
+}
+function msgFontSize(s, maxW) {
+  var size = 20;
+  ctx.font = '400 ' + size + 'px "Share Tech Mono", Orbitron, monospace';
+  var w = ctx.measureText(s).width;
+  if (w > maxW) size = Math.max(11, Math.floor(size * maxW / w));
+  return size;
+}
+window.__bgMsg = bgMsg;
+
+/* ---- scenery ---- */
+var stars = [], skyFar = [], skyNear = [];
+function initScenery() {
+  stars = [];
+  for (var i = 0; i < 70; i++) stars.push({ x: Math.random() * W, y: Math.random() * H * 0.62, r: Math.random() * 1.6 + 0.4, tw: Math.random() * 3 + 1, ph: Math.random() * 6.28 });
+  function row(base, maxH, color) {
+    var arr = [], x = -20;
+    while (x < W + 240) {
+      var w = 34 + Math.random() * 46;
+      var h = base + Math.random() * maxH;
+      arr.push({ x: x, w: w, h: h, c: color, seed: Math.floor(Math.random() * 9999) });
+      x += w + 6 + Math.random() * 20;
+    }
+    return arr;
+  }
+  skyFar = row(H * 0.10, H * 0.12, '#070d16');
+  skyNear = row(H * 0.05, H * 0.16, '#0a1420');
+}
+initScenery();
+
+/* ---- game state ---- */
+var G = {};
+function reset() {
+  G = {
+    state: 'ready', frame: 0, score: 0, deadT: 0,
+    best: +(localStorage.getItem(BEST_KEY) || 0),
+    newBest: false,
+    bird: { x: Math.max(90, W * 0.28), y: H * 0.45, vy: 0, r: 16, rot: 0, wing: 0 },
+    pipes: [], logoSeq: 0, speed: 2.7, flash: 0, shake: 0, lastCenter: null, perfectT: 0, sparkles: [],
+    groundX: 0, bgFar: 0, bgNear: 0,
+    particles: []
+  };
+  window.__S = G;
+}
+reset();
+
+function spawnPipe() {
+  var gap = Math.max(GAP_MIN, GAP_BASE - G.score * 1.5);
+  var minTop = 80;
+  var maxTop = H - GROUND - gap - 80;
+  if (maxTop < minTop) maxTop = minTop;
+  var cMin = minTop + gap / 2, cMax = maxTop - gap / 2;
+  if (cMax < cMin) cMax = cMin;
+  var center = (G.lastCenter != null) ? G.lastCenter : (cMin + cMax) / 2;
+  /* gentle drift early, bigger swings once score is high */
+  var t = Math.min(G.score, 30) / 30;
+  var maxDelta = 85 + t * 210; /* 85px @ score 0 → 295px @ score 30+ */
+  var delta = (Math.random() * 2 - 1) * maxDelta;
+  center = Math.max(cMin, Math.min(cMax, center + delta));
+  if (G.pipes.length === 0 && G.logoSeq === 0) center = (cMin + cMax) / 2; /* first pipe starts mid */
+  G.lastCenter = center;
+  var top = center - gap / 2;
+  G.pipes.push({ x: W + PW + 10, top: top, gap: gap, logo: G.logoSeq % 5, passed: false });
+  G.logoSeq++;
+}
+
+function flap() {
+  var b = G.bird;
+  b.vy = -8.6; b.wing = 0;
+  sFlap();
+  for (var i = 0; i < 3; i++) G.particles.push({ x: b.x - 10, y: b.y + 10, vx: -1 - Math.random() * 2, vy: Math.random() * 2, life: 1, r: 2 + Math.random() * 2, c: '143,217,255' });
+}
+function die() {
+  if (G.state !== 'play') return;
+  G.state = 'dead'; G.deadT = 0;
+  sHit(); G.flash = 1; G.shake = 14;
+  var b = G.bird;
+  for (var i = 0; i < 14; i++) G.particles.push({ x: b.x, y: b.y, vx: (Math.random() - 0.5) * 7, vy: (Math.random() - 0.5) * 7, life: 1, r: 2 + Math.random() * 3.5, c: Math.random() < 0.5 ? '255,90,90' : '255,210,63' });
+  if (G.score > G.best) { G.best = G.score; G.newBest = true; try { localStorage.setItem(BEST_KEY, String(G.best)); } catch (e) {} }
+  lbSubmit(G.score);
+}
+
+function tap() {
+  if (G.state === 'ready') { G.state = 'play'; flap(); }
+  else if (G.state === 'play') flap();
+  else if (G.state === 'dead' && G.deadT > 40) reset();
+}
+window.__tap = tap;
+
+window.addEventListener('pointerdown', function (e) {
+  ac();
+  /* leaderboard + name UI handle their own clicks — never flap through them */
+  if (e.target.closest && (e.target.closest('#lbPanel') || e.target.closest('#lbBtn') || e.target.closest('#namePanel'))) return;
+  if (LB.open) return;
+  if (NAMEP.active) return;
+  tap(); e.preventDefault();
+}, { passive: false });
+window.addEventListener('keydown', function (e) {
+  if (e.target && (e.target.id === 'lbName' || e.target.id === 'nameInput')) return; /* typing */
+  if (e.repeat) return;
+  if (e.code === 'Space' || e.code === 'ArrowUp') { ac(); tap(); e.preventDefault(); }
+});
+/* ---- name gate (IP-tracked — one name per IP forever) ---- */
+var NAMEP = {
+  active: false,
+  registered: false,
+  init: function () {
+    this.el = document.getElementById('namePanel');
+    this.input = document.getElementById('nameInput');
+    this.btn = document.getElementById('namePlay');
+    this.status = document.getElementById('nameStatus');
+    var self = this;
+
+    this.input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); self.btn.click(); }
+    });
+    this.btn.addEventListener('click', function () {
+      var n = lbSanitize(self.input.value);
+      if (!n) { self.status.textContent = 'enter a name first'; return; }
+      self.status.textContent = 'registering…';
+      self.btn.disabled = true;
+      fetch(LB.api + '/me', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: n })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.error) {
+          self.status.textContent = d.message || d.error;
+          self.btn.disabled = false;
+          return;
+        }
+        LB.name = d.name;
+        self.registered = true;
+        self.hide();
+        /* start the game */
+        if (typeof tap === 'function') { G.state = 'ready'; }
+      }).catch(function () {
+        self.status.textContent = 'server error, try again';
+        self.btn.disabled = false;
+      });
+    });
+
+    /* check if this IP already has a name */
+    fetch(LB.api + '/me').then(function (r) { return r.json(); }).then(function (d) {
+      if (d && d.name) {
+        LB.name = d.name;
+        self.input.value = d.name;
+        self.registered = true;
+        self.hide();
+        /* game starts in ready state automatically */
+      } else {
+        self.show();
+      }
+    }).catch(function () {
+      self.show(); /* fallback: always show on error */
+    });
+  },
+  show: function () {
+    this.active = true;
+    this.el.style.display = 'flex';
+    this.input.focus();
+  },
+  hide: function () {
+    this.active = false;
+    this.registered = true;
+    this.el.style.display = 'none';
+  }
+};
+NAMEP.init();
+window.__NAMEP = NAMEP;
+(function lbInit() {
+  var b = document.getElementById('lbBtn'), p = document.getElementById('lbPanel');
+  var inp = document.getElementById('lbName'), sv = document.getElementById('lbSave'), cl = document.getElementById('lbClose');
+  if (inp) { inp.value = LB.name || ''; inp.addEventListener('input', function () { LB.name = lbSanitize(inp.value); }); }
+  if (sv) sv.addEventListener('click', function () { lbSave(); });
+  if (cl) cl.addEventListener('click', function () { lbToggle(false); });
+  if (b) b.addEventListener('click', function () { lbToggle(true); });
+  setInterval(function () {
+    if (LB.open) lbRender();
+    if (LB.submitT > 0) LB.submitT -= 2.5;
+  }, 40);
+})();
+
+/* ---- update ---- */
+function update(dt) {
+  G.frame += dt;
+  var b = G.bird;
+
+  if (G.state === 'ready') {
+    b.y = H * 0.45 + Math.sin(G.frame * 0.07) * 10;
+    b.vy = 0; b.rot = Math.sin(G.frame * 0.07) * 0.06;
+    b.wing += 0.3 * dt;
+    G.groundX = (G.groundX + 1.2 * dt) % 26;
+    G.bgFar = (G.bgFar + 0.3 * dt) % 4000;
+    G.bgNear = (G.bgNear + 0.7 * dt) % 4000;
+  }
+  else if (G.state === 'play') {
+    bgMsg.t += dt;
+    if (bgMsg.t >= MSG_CYCLE) { bgMsg.t -= MSG_CYCLE; bgMsg.i = (bgMsg.i + 1) % MSGS.length; }
+    bgMsg.alpha = msgEnv(bgMsg.t) * (0.275 + 0.075 * Math.sin(G.frame * 0.015));
+    b.vy += 0.5 * dt;
+    b.y += b.vy * dt;
+    b.wing += 0.42 * dt;
+    var tr = Math.max(-0.45, Math.min(1.35, b.vy * 0.07));
+    b.rot += (tr - b.rot) * 0.15 * dt;
+    if (b.y < b.r) { b.y = b.r; b.vy = Math.max(b.vy, 0); }
+
+    G.speed = 2.7 + Math.min(G.score * 0.055, 2.4);
+    G.groundX = (G.groundX + G.speed * dt) % 26;
+    G.bgFar = (G.bgFar + G.speed * 0.25 * dt) % 4000;
+    G.bgNear = (G.bgNear + G.speed * 0.55 * dt) % 4000;
+
+    if (G.pipes.length === 0 || G.pipes[G.pipes.length - 1].x < W - SPAWN_DIST) spawnPipe();
+    for (var i = 0; i < G.pipes.length; i++) {
+      var p = G.pipes[i];
+      p.x -= G.speed * dt;
+      if (!p.passed && p.x + PW < b.x - b.r) { p.passed = true; G.score++; sScore(); if (G.score % 10 === 0) perfectFX(); }
+    }
+    G.pipes = G.pipes.filter(function (p) { return p.x > -PW - 12; });
+
+    var hw = b.r * 0.82, hh = b.r * 0.82;
+    for (var j = 0; j < G.pipes.length; j++) {
+      var q = G.pipes[j];
+      if (b.x + hw > q.x && b.x - hw < q.x + PW) {
+        if (b.y - hh < q.top || b.y + hh > q.top + q.gap) { die(); break; }
+      }
+    }
+    if (G.state === 'play' && b.y + b.r > H - GROUND) { b.y = H - GROUND - b.r; die(); }
+  }
+  else { /* dead */
+    G.deadT += dt;
+    if (b.y + b.r < H - GROUND - 1) {
+      b.vy += 0.6 * dt; b.y += b.vy * dt;
+      b.rot += (1.5 - b.rot) * 0.1 * dt;
+    } else { b.y = H - GROUND - b.r; b.vy = 0; b.rot = 1.5; }
+  }
+
+  for (var k = G.particles.length - 1; k >= 0; k--) {
+    var pt = G.particles[k];
+    pt.x += pt.vx * dt; pt.y += pt.vy * dt;
+    pt.vy += 0.12 * dt;
+    pt.life -= 0.03 * dt;
+    if (pt.life <= 0) G.particles.splice(k, 1);
+  }
+  if (G.perfectT > 0) G.perfectT -= dt;
+  G.flash *= Math.pow(0.86, dt);
+  G.shake *= Math.pow(0.85, dt);
+}
+
+/* ---- draw helpers ---- */
+function rr(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function badge(x, y, idx, r) {
+  var img = logos[idx];
+  if (!logoReady(idx)) return;
+  ctx.drawImage(img, x - r, y - r, r * 2, r * 2);
+}
+
+function drawPipeCol(x, y, h, capAtBottom, logoIdx) {
+  var c = pipeColorsFor(logoIdx);
+  var grad = ctx.createLinearGradient(x, 0, x + PW, 0);
+  grad.addColorStop(0, c.body[0]); grad.addColorStop(0.55, c.body[1]); grad.addColorStop(1, c.body[2]);
+  ctx.save();
+  ctx.shadowColor = c.glow; ctx.shadowBlur = 14;
+  ctx.fillStyle = grad;
+  ctx.fillRect(x, y, PW, h);
+  ctx.restore();
+  ctx.fillStyle = 'rgba(255,255,255,0.16)';
+  ctx.fillRect(x + 9, y, 7, h);
+  var capY = capAtBottom ? (y + h - 26) : y;
+  var cg = ctx.createLinearGradient(x, 0, x + PW, 0);
+  cg.addColorStop(0, c.cap[0]); cg.addColorStop(0.5, c.cap[1]); cg.addColorStop(1, c.cap[2]);
+  ctx.fillStyle = cg;
+  ctx.fillRect(x - 7, capY, PW + 14, 26);
+  ctx.strokeStyle = '#062d1a'; ctx.lineWidth = 2;
+  ctx.strokeRect(x - 7, capY, PW + 14, 26);
+}
+
+function drawPipe(p) {
+  var gapBottom = p.top + p.gap;
+  drawPipeCol(p.x, -12, p.top + 12, true, p.logo);
+  drawPipeCol(p.x, gapBottom, H - GROUND - gapBottom, false, p.logo);
+  var r = Math.min(37, PW * 0.44);
+  var byT = Math.max(48, Math.min(p.top - r - 12, p.top - 64));
+  var byB = Math.min(H - GROUND - r - 12, gapBottom + 64);
+  if (byB > gapBottom + r + 8) badge(p.x + PW / 2, byB, p.logo, r);
+  if (p.top > r + 20) badge(p.x + PW / 2, byT, p.logo, r);
+}
+
+function drawBird() {
+  var b = G.bird;
+  ctx.save();
+  ctx.translate(b.x, b.y); ctx.rotate(b.rot);
+  var wa = Math.sin(b.wing) * 0.85 - 0.25;
+  /* wing */
+  ctx.save();
+  ctx.translate(-5, 3); ctx.rotate(wa);
+  ctx.fillStyle = '#ffe9a3';
+  ctx.beginPath(); ctx.ellipse(0, 0, 11, 7, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#b8860b'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.restore();
+  /* body */
+  var bg2 = ctx.createRadialGradient(-4, -6, 2, 0, 0, 17);
+  bg2.addColorStop(0, '#ffe37a'); bg2.addColorStop(1, '#ffc82e');
+  ctx.fillStyle = bg2;
+  ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#b8860b'; ctx.lineWidth = 2; ctx.stroke();
+  /* eye */
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(6, -5, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#101418';
+  ctx.beginPath(); ctx.arc(7.6, -5, 2.4, 0, Math.PI * 2); ctx.fill();
+  /* beak */
+  ctx.fillStyle = '#ff8c1a';
+  ctx.beginPath(); ctx.moveTo(13, -3); ctx.lineTo(24, 0.5); ctx.lineTo(13, 4); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#c96a08'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.restore();
+}
+
+function txt(s, x, y, size, color, align, glow, weight) {
+  ctx.save();
+  ctx.font = (weight || 700) + ' ' + size + 'px Orbitron, "Segoe UI", monospace';
+  ctx.textAlign = align || 'center';
+  ctx.textBaseline = 'middle';
+  if (glow) { ctx.shadowColor = glow; ctx.shadowBlur = 18; }
+  ctx.fillStyle = color;
+  ctx.fillText(s, x, y);
+  ctx.restore();
+}
+
+/* ---- draw ---- */
+function draw() {
+  ctx.save();
+  if (G.shake > 0.5) ctx.translate((Math.random() - 0.5) * G.shake, (Math.random() - 0.5) * G.shake);
+
+  /* sky */
+  var sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, '#04050c'); sky.addColorStop(0.55, '#0a1030'); sky.addColorStop(1, '#141b46');
+  ctx.fillStyle = sky; ctx.fillRect(-20, -20, W + 40, H + 40);
+
+  /* stars */
+  for (var s = 0; s < stars.length; s++) {
+    var st = stars[s];
+    ctx.globalAlpha = 0.35 + 0.55 * Math.abs(Math.sin(G.frame * 0.02 * st.tw + st.ph));
+    ctx.fillStyle = '#cfe6ff';
+    ctx.fillRect(st.x, st.y, st.r, st.r);
+  }
+  ctx.globalAlpha = 1;
+
+  /* moon */
+  ctx.save();
+  ctx.shadowColor = 'rgba(200,230,255,0.8)'; ctx.shadowBlur = 30;
+  ctx.fillStyle = '#dceeff';
+  ctx.beginPath(); ctx.arc(W * 0.78, H * 0.14, 24, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = 'rgba(160,190,220,0.5)';
+  ctx.beginPath(); ctx.arc(W * 0.78 - 7, H * 0.14 - 5, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(W * 0.78 + 6, H * 0.14 + 7, 3, 0, Math.PI * 2); ctx.fill();
+
+  /* rotating educational Cancore text — drifts across the sky with the world (parallax), not glued to the screen */
+  if (G.state === 'play' && bgMsg.alpha > 0.015) {
+    var ms = MSGS[bgMsg.i];
+    var mSize = msgFontSize(ms, W - 60);
+    var prog = bgMsg.t / MSG_CYCLE;                 /* 0 → 1 across the cycle */
+    var mx = W * (0.64 - 0.30 * prog);              /* gentle leftward drift, same direction as skyline/pipes */
+    var my = Math.max(H * 0.16, 118) + Math.sin(G.frame * 0.02) * 4; /* subtle vertical float */
+    ctx.save();
+    ctx.globalAlpha = bgMsg.alpha;
+    ctx.font = '400 ' + mSize + 'px "Share Tech Mono", Orbitron, monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(64,255,208,0.55)'; ctx.shadowBlur = 9;
+    ctx.fillStyle = '#40ffd0';
+    ctx.fillText(ms, mx, my);
+    ctx.restore();
+  }
+
+  /* skyline far + near */
+  function drawRow(arr, off, alpha) {
+    ctx.globalAlpha = alpha;
+    for (var i = 0; i < arr.length; i++) {
+      var bd = arr[i];
+      var bx = bd.x - off;
+      if (bx < -bd.w - 260 || bx > W + 20) continue;
+      ctx.fillStyle = bd.c;
+      ctx.fillRect(bx, H - GROUND - bd.h, bd.w, bd.h);
+      var n = (bd.seed % 5) + 2;
+      ctx.fillStyle = 'rgba(255,210,63,0.4)';
+      for (var wI = 0; wI < n; wI++) {
+        var wx = bx + 6 + ((bd.seed * (wI + 3)) % Math.max(4, bd.w - 10));
+        var wy = H - GROUND - bd.h + 6 + ((bd.seed * (wI + 7)) % Math.max(6, bd.h - 14));
+        ctx.fillRect(wx, wy, 3, 4);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+  drawRow(skyFar, G.bgFar % 4000, 0.8);
+  drawRow(skyNear, G.bgNear % 4000, 1);
+
+  /* pipes */
+  for (var pi = 0; pi < G.pipes.length; pi++) drawPipe(G.pipes[pi]);
+
+  /* particles */
+  for (var k = 0; k < G.particles.length; k++) {
+    var pt = G.particles[k];
+    ctx.globalAlpha = Math.max(0, pt.life);
+    ctx.fillStyle = 'rgb(' + pt.c + ')';
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  /* ground */
+  ctx.fillStyle = '#0a0f14';
+  ctx.fillRect(-20, H - GROUND, W + 40, GROUND + 20);
+  ctx.save();
+  ctx.shadowColor = '#2fd873'; ctx.shadowBlur = 12;
+  ctx.strokeStyle = '#2fd873'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-10, H - GROUND); ctx.lineTo(W + 10, H - GROUND); ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(47,216,115,0.14)'; ctx.lineWidth = 2;
+  for (var gx = -26; gx < W + 26; gx += 26) {
+    var sx = gx - G.groundX;
+    ctx.beginPath(); ctx.moveTo(sx, H - GROUND + 6); ctx.lineTo(sx + 14, H - 2); ctx.stroke();
+  }
+
+  /* bird */
+  drawBird();
+
+  /* score (play + dead) */
+  if (G.state !== 'ready') {
+    txt(String(G.score), W / 2, 74, 54, '#ffffff', 'center', 'rgba(47,216,115,0.9)', 900);
+  }
+
+  /* PERFECT! banner — golden shimmer, 3s only, multiples of 10 */
+  if (G.perfectT > 0 && G.state === 'play') {
+    var age = 180 - G.perfectT;                       /* frames since trigger */
+    var aIn = Math.min(1, age / 10);                  /* pop in */
+    var aOut = Math.min(1, G.perfectT / 26);          /* fade out near end */
+    var al = aIn * aOut;
+    var pop = age < 12 ? 1 + 0.35 * (1 - age / 12) : 1;
+    var px = W / 2, py = H * 0.30;
+    var scale = 1.35 + 0.05 * Math.sin(G.frame * 0.06);
+    ctx.save();
+    ctx.globalAlpha = al;
+    ctx.translate(px, py);
+    ctx.scale(pop * scale, pop * scale);
+    /* shimmer sweep: golden gradient band sliding across the text */
+    var fx = ((G.frame * 7) % 260) - 130;
+    var shimmer = ctx.createLinearGradient(-130, 0, 130, 0);
+    var c1 = Math.max(0, (fx - 45 + 130) / 260);
+    var c2 = Math.max(c1 + 0.01, Math.min(0.99, (fx + 130) / 260));
+    var c3 = Math.min(1, c2 + 0.05);
+    shimmer.addColorStop(c1, '#ffd23f');
+    shimmer.addColorStop(c2, '#fffbe6');
+    shimmer.addColorStop(c3, '#ffd23f');
+    txt('PERFECT!', 0, 0, 40, shimmer, 'center', 'rgba(255,210,63,0.95)', 900);
+    /* gold sparkles around the banner */
+    for (var sp2 = 0; sp2 < G.sparkles.length; sp2++) {
+      var sk = G.sparkles[sp2];
+      var tw = 0.35 + 0.65 * Math.abs(Math.sin(G.frame * 0.09 * sk.sp + sk.ph));
+      ctx.globalAlpha = al * tw;
+      ctx.fillStyle = '#ffd23f';
+      ctx.beginPath();
+      var sx2 = sk.ox, sy2 = sk.oy;
+      ctx.moveTo(sx2, sy2 - sk.r); ctx.lineTo(sx2 + sk.r * 0.3, sy2 - sk.r * 0.3);
+      ctx.lineTo(sx2 + sk.r, sy2); ctx.lineTo(sx2 + sk.r * 0.3, sy2 + sk.r * 0.3);
+      ctx.lineTo(sx2, sy2 + sk.r); ctx.lineTo(sx2 - sk.r * 0.3, sy2 + sk.r * 0.3);
+      ctx.lineTo(sx2 - sk.r, sy2); ctx.lineTo(sx2 - sk.r * 0.3, sy2 - sk.r * 0.3);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  /* ready screen */
+  if (G.state === 'ready') {
+    txt('FLAPPY', W / 2, H * 0.22, 46, '#ffffff', 'center', 'rgba(47,216,115,0.7)', 900);
+    txt('CRYPTO', W / 2, H * 0.22 + 52, 46, '#2fd873', 'center', 'rgba(47,216,115,0.8)', 900);
+    txt('Every pipe carries a native asset.', W / 2, H * 0.40, 15, 'rgba(207,230,255,0.92)', 'center', null, 700);
+    txt('Cancore connects the flow.', W / 2, H * 0.40 + 24, 15, '#2fd873', 'center', 'rgba(47,216,115,0.55)', 700);
+    var lr = 24, sp = 62;
+    var rowW = sp * 4 + lr * 2;
+    for (var m = 0; m < 5; m++) badge(W / 2 - rowW / 2 + m * sp, H * 0.58, m, lr);
+    ctx.globalAlpha = 0.6 + 0.4 * Math.sin(G.frame * 0.09);
+    txt('TAP / SPACE TO FLAP', W / 2, H * 0.72, 18, '#cfe6ff', 'center', null, 700);
+    ctx.globalAlpha = 1;
+    if (LB.name) txt('PLAYING AS: ' + String(LB.name).toUpperCase(), W / 2, H * 0.72 + 30, 13, '#40ffd0', 'center', null, 700);
+    txt('BEST ' + G.best, W / 2, H * 0.80, 16, 'rgba(207,230,255,0.75)', 'center', null, 700);
+  }
+
+  /* game over */
+  if (G.state === 'dead' && G.deadT > 14) {
+    var a = Math.min(1, (G.deadT - 14) / 16);
+    ctx.globalAlpha = a * 0.78;
+    ctx.fillStyle = '#03050a';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = a;
+    var pw2 = Math.min(320, W - 40), ph2 = 210, px2 = (W - pw2) / 2, py2 = H / 2 - ph2 / 2 - 20;
+    ctx.fillStyle = 'rgba(8,14,24,0.95)';
+    rr(px2, py2, pw2, ph2, 16); ctx.fill();
+    ctx.strokeStyle = '#2fd873'; ctx.lineWidth = 2; ctx.stroke();
+    txt('GAME OVER', W / 2, py2 + 42, 28, '#ff5a5a', 'center', 'rgba(255,90,90,0.6)', 900);
+    txt(String(G.score), W / 2, py2 + 95, 44, '#ffffff', 'center', 'rgba(47,216,115,0.8)', 900);
+    if (G.newBest) txt('NEW BEST!', W / 2, py2 + 132, 15, '#ffd23f', 'center', null, 900);
+    else txt('BEST ' + G.best, W / 2, py2 + 132, 15, 'rgba(207,230,255,0.75)', 'center', null, 700);
+    /* score submitted badge — global rank live */
+    if (LB.submitT > 0) {
+      ctx.globalAlpha = Math.min(1, LB.submitT / 30);
+      var sb = LB.submitOk === null ? 'submitting score…' : (LB.submitOk ? ('SUBMITTED · GLOBAL RANK #' + LB.myRank) : 'offline — score not saved');
+      txt(sb, W / 2, py2 + 160, 13, LB.submitOk ? '#40ffd0' : 'rgba(207,230,255,0.8)', 'center', null, 700);
+      ctx.globalAlpha = 1;
+    }
+    if (G.deadT > 40) {
+      ctx.globalAlpha = a * (0.55 + 0.45 * Math.sin(G.frame * 0.09));
+      txt('TAP TO RETRY', W / 2, py2 + ph2 - 26, 15, '#2fd873', 'center', null, 900);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* Powered by Hivera — small label above the skyline */
+  ctx.save();
+  ctx.globalAlpha = 0.6;
+  ctx.font = '400 12px "Share Tech Mono", Orbitron, monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#9fe8d8';
+  ctx.fillText('Powered by Hivera', W / 2, H - GROUND - 12);
+  ctx.restore();
+
+  /* flash */
+  if (G.flash > 0.02) {
+    ctx.globalAlpha = G.flash * 0.55;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-20, -20, W + 40, H + 40);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+/* ---- main loop ---- */
+var last = performance.now();
+function loop(now) {
+  var dt = Math.min(Math.max((now - last) / 16.667, 0.4), 2.5);
+  last = now;
+  try { update(dt); draw(); }
+  catch (e) { console.error('render error:', e && e.message); }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

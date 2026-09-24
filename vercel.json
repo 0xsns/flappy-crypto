@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "api/scores.js": {
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/scores/:path*",
+      "destination": "/api/scores"
+    }
+  ]
+}

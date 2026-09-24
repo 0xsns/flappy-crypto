@@ -1,0 +1,9 @@
+.vercel
+.vercel/*
+index.html
+*.pyc
+__pycache__
+.DS_Store
+.env
+.supabase-creds
+remove_bg.py
